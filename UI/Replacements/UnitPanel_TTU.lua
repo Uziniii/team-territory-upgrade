@@ -69,6 +69,7 @@ local m_kTutorialAllDisabled	:table = {};	-- hashes of actions disabled for all 
 
 local m_DeleteInProgress		:boolean = false;
 local m_showPromotionBanner		:boolean = false;
+local m_pendingTeamUpgradeUnit = -1;
 
 local function IsTeamTerritoryUpgrade(unit)
 	local plot = Map.GetPlot(unit:GetX(), unit:GetY());
@@ -86,8 +87,21 @@ local function OnTeamTerritoryUpgrade()
 		OnStart = "TTU_TeamTerritoryUpgrade",
 		UnitID = unit:GetID()
 	};
+	m_pendingTeamUpgradeUnit = unit:GetID();
 	print("[TeamTerritoryUpgrades] UI requesting custom upgrade unit=" .. tostring(unit:GetID()));
 	UI.RequestPlayerOperation(Game.GetLocalPlayer(), PlayerOperations.EXECUTE_SCRIPT, parameters);
+end
+
+if ExposedMembers.GameEvents ~= nil then
+	ExposedMembers.GameEvents.TTU_TeamUpgradePermissionGranted.Add(function(playerID, unitID)
+		if playerID ~= Game.GetLocalPlayer() or unitID ~= m_pendingTeamUpgradeUnit then return; end
+		local unit = Players[playerID]:GetUnits():FindID(unitID);
+		if unit ~= nil then
+			print("[TeamTerritoryUpgrades] UI requesting native upgrade unit=" .. tostring(unitID));
+			UnitManager.RequestCommand(unit, UnitCommandTypes.UPGRADE);
+		end
+		m_pendingTeamUpgradeUnit = -1;
+	end);
 end
 
 local m_attackerUnit = nil;

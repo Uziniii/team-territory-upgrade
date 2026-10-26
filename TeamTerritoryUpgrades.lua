@@ -1,6 +1,8 @@
 -- Multiplayer-safe team-territory upgrade.
 -- The UI sends a PlayerOperations.EXECUTE_SCRIPT request; this handler runs in gameplay.
 local PREFIX = "[TeamTerritoryUpgrades] ";
+ExposedMembers = ExposedMembers or {};
+ExposedMembers.GameEvents = GameEvents;
 
 local function Log(message)
 	print(PREFIX .. message);
@@ -27,26 +29,6 @@ local function IsOwnedTeamTerritory(playerID, unit)
 		and Players[territoryOwner]:GetTeam() == Players[playerID]:GetTeam();
 end
 
-local function CopyUnitState(oldUnit, newUnit)
-	newUnit:SetDamage(oldUnit:GetDamage());
-	newUnit:SetName(oldUnit:GetName());
-	newUnit:SetFortifyTurns(oldUnit:GetFortifyTurns());
-
-	local oldExperience = oldUnit:GetExperience();
-	local newExperience = newUnit:GetExperience();
-	newExperience:ChangeExperience(oldExperience:GetExperiencePoints());
-	for promotion in GameInfo.UnitPromotions() do
-		if oldExperience:HasPromotion(promotion.Index) then
-			newExperience:SetPromotion(promotion.Index);
-		end
-	end
-
-	local movesUsed = oldUnit:GetMaxMoves() - oldUnit:GetMovesRemaining();
-	if movesUsed > 0 then
-		UnitManager.ChangeMovesRemaining(newUnit, -movesUsed);
-	end
-end
-
 local function TeamTerritoryUpgrade(playerID, parameters)
 	if parameters == nil or parameters.UnitID == nil then
 		Log("Rejected request: missing UnitID");
@@ -64,63 +46,19 @@ local function TeamTerritoryUpgrade(playerID, parameters)
 		return;
 	end
 
-	local upgradeType = GetUpgradeType(unit);
-	if upgradeType == nil then
+	if GetUpgradeType(unit) == nil then
 		Log("Rejected request: no upgrade defined for unit " .. tostring(unit:GetType()));
 		return;
 	end
 
-	local goldCost = unit:GetUpgradeCost();
-	local resourceCost = 0;
-	local resourceType = nil;
-	-- This accessor is available in the UI VM on some builds, but not in
-	-- the gameplay VM. Keep the custom operation usable in both contexts.
-	if type(unit.GetUpgradeResourceCost) == "function" then
-		local resourceCallOK, cost, resource = pcall(function()
-			return unit:GetUpgradeResourceCost();
-		end);
-		if resourceCallOK then
-			resourceCost = cost or 0;
-			resourceType = resource;
-		end
-	end
-	local treasury = player:GetTreasury();
-	local resources = player:GetResources();
-	if goldCost == nil then goldCost = 0; end
-	if resourceCost == nil then resourceCost = 0; end
-	Log("Upgrade cost player=" .. tostring(playerID)
-		.. " gold=" .. tostring(goldCost)
-		.. " resource=" .. tostring(resourceCost));
-	if treasury:GetGoldBalance() < goldCost then
-		Log("Rejected request: insufficient gold");
-		return;
-	end
-	if resourceCost > 0 and (resources == nil or resources:GetResourceAmount(resourceType) < resourceCost) then
-		Log("Rejected request: insufficient strategic resource");
-		return;
-	end
-
-	local x = unit:GetX();
-	local y = unit:GetY();
-	local oldUnitID = unit:GetID();
-	local newUnit = UnitManager.InitUnit(playerID, upgradeType, x, y);
-	if newUnit == nil then
-		Log("Rejected request: InitUnit failed");
-		return;
-	end
-
-	CopyUnitState(unit, newUnit);
-	-- Destroy through the player's unit collection. UnitManager.Kill does not
-	-- remove the old instance reliably when called from this custom operation.
-	player:GetUnits():Destroy(unit);
-	treasury:ChangeGoldBalance(-goldCost);
-	if resourceCost > 0 then
-		resources:ChangeResourceAmount(resourceType, -resourceCost);
-	end
-	Log("Upgrade completed player=" .. tostring(playerID)
-		.. " oldUnit=" .. tostring(oldUnitID)
-		.. " newUnit=" .. tostring(newUnit:GetID())
-		.. " type=" .. tostring(upgradeType));
+	local territoryOwner = Map.GetPlot(unit:GetX(), unit:GetY()):GetOwner();
+	local playerDiplomacy = player:GetDiplomacy();
+	local ownerDiplomacy = Players[territoryOwner]:GetDiplomacy();
+	playerDiplomacy:SetHasAllied(territoryOwner, true);
+	ownerDiplomacy:SetHasAllied(playerID, true);
+	Log("Native upgrade permission granted player=" .. tostring(playerID)
+		.. " unit=" .. tostring(unit:GetID()));
+	GameEvents.TTU_TeamUpgradePermissionGranted.Call(playerID, unit:GetID());
 end
 
 GameEvents.TTU_TeamTerritoryUpgrade.Add(TeamTerritoryUpgrade);

@@ -28,7 +28,7 @@ def test_gameplay_script_registers_host_upgrade_handler():
 
     assert "GameEvents.TTU_TeamTerritoryUpgrade.Add(TeamTerritoryUpgrade)" in source
     assert "IsOwnedTeamTerritory" in source
-    assert "UnitManager.InitUnit" in source
+    assert "GameEvents.TTU_TeamUpgradePermissionGranted.Call" in source
 
 
 def run_gameplay_with_players(player_specs):
