@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Mod id="754081a2-6457-4b02-8345-3a89679150fd" version="2">
+  <Properties>
+    <Name>Team Territory Upgrades</Name>
+    <Description>Permet a une unite de s'ameliorer sur le territoire d'un coequipier sans pacte diplomatique permanent.</Description>
+    <Teaser>Upgrade des unites en territoire de coequipier.</Teaser>
+    <Authors>Local development</Authors>
+    <AffectsSavedGames>1</AffectsSavedGames>
+    <CompatibleVersions>2.0</CompatibleVersions>
+  </Properties>
+  <Dependencies>
+    <Mod id="4873eb62-8ccc-4574-b784-dda455e74e68" title="Gathering Storm" />
+  </Dependencies>
+  <ActionCriteria>
+    <Criteria id="GatheringStorm"><GameCoreInUse>Expansion2</GameCoreInUse></Criteria>
+  </ActionCriteria>
+  <InGameActions>
+    <AddGameplayScripts id="TTU_Gameplay" criteria="GatheringStorm">
+      <File>TeamTerritoryUpgrades.lua</File>
+    </AddGameplayScripts>
+    <ReplaceUIScript id="TTU_UnitPanel" criteria="GatheringStorm">
+      <Properties>
+        <LuaContext>UnitPanel</LuaContext>
+        <LuaReplace>UI/Replacements/UnitPanel_TTU.lua</LuaReplace>
+      </Properties>
+    </ReplaceUIScript>
+  </InGameActions>
+  <Files>
+    <File>TeamTerritoryUpgrades.lua</File>
+    <File>UI/Replacements/UnitPanel_TTU.lua</File>
+  </Files>
+</Mod>
